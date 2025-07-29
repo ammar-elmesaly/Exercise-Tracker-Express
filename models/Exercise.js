@@ -15,10 +15,11 @@ const exerciseSchema = new mongoose.Schema({
   },
   duration: {
     type: Number,
-    required: true
+    required: true,
+    min: 0.1
   },
   date: {
-    type: String,
+    type: Date,
     required: true
   }
 });

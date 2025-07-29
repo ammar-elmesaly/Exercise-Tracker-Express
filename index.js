@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const Exercise = require('./models/Exercise');
+const { ObjectId } = require('mongodb');
 
 mongoose.connect(process.env.MONGO_URI);
 
@@ -35,11 +36,35 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
     res.send({
       _id: result.user_id,
       username: result.username,
-      date: result.date,
+      date: result.date.toDateString(),
       duration: result.duration,
       description: result.description
     });
 
+  } catch (error) {
+    res.send({error: error.message});
+  }
+});
+
+app.get('/api/users/:_id/logs', async (req, res) => {
+  try {
+    const user = await getUserById(req.params._id);
+    if (!user) throw new Error("User not found");
+
+    const exercises = await getAllExercises(req.params._id);
+    const exercisesTruncated = exercises.map((exercise) => {
+      return {
+        description: exercise.description,
+        duration: exercise.duration,
+        date: exercise.date.toDateString()
+      }
+    });
+    res.send({
+      _id: user._id,
+      username: user.username,
+      count: exercises.length,
+      log: exercisesTruncated
+    });
   } catch (error) {
     res.send({error: error.message});
   }
@@ -60,8 +85,8 @@ async function createNewExercise(id, description, duration, date) {
   const user = await getUserById(id);
   const username = user.username;
 
-  if (!date) date = new Date().toDateString();
-  else date = new Date(date).toDateString();
+  if (!date) date = new Date();
+  else date = new Date(date);
 
   const newExercise = new Exercise({
     user_id: id,
@@ -75,6 +100,10 @@ async function createNewExercise(id, description, duration, date) {
 
 function getUserById(id) {
   return User.findById(id);
+}
+
+function getAllExercises(user_id) {
+  return Exercise.find({user_id: ObjectId.createFromHexString(user_id)});
 }
 
 const listener = app.listen(process.env.PORT || 3000, () => {
