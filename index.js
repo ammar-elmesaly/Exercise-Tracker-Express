@@ -51,19 +51,16 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     const user = await getUserById(req.params._id);
     if (!user) throw new Error("User not found");
 
-    const exercises = await getAllExercises(req.params._id);
-    const exercisesTruncated = exercises.map((exercise) => {
-      return {
-        description: exercise.description,
-        duration: exercise.duration,
-        date: exercise.date.toDateString()
-      }
-    });
+    const limit = req.query.limit;
+    const from = req.query.from;
+    const to = req.query.to;
+
+    const exercises = await getAllExercises(req.params._id, limit, from, to);
     res.send({
       _id: user._id,
       username: user.username,
       count: exercises.length,
-      log: exercisesTruncated
+      log: exercises
     });
   } catch (error) {
     res.send({error: error.message});
@@ -102,8 +99,24 @@ function getUserById(id) {
   return User.findById(id);
 }
 
-function getAllExercises(user_id) {
-  return Exercise.find({user_id: ObjectId.createFromHexString(user_id)});
+async function getAllExercises(user_id, limit, from, to) {
+  const exercises = await Exercise.find({user_id: ObjectId.createFromHexString(user_id)}).select('-_id description duration date');
+  return filterExercices(exercises, limit, from, to);
+}
+
+function filterExercices(exercises, limit, from, to) {
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+  let cnt = 0;
+
+  return exercises.filter(e => {
+    const exerciseDate = new Date(e.date);
+    if (fromDate && exerciseDate <= fromDate) return false;
+    if (toDate && exerciseDate >= toDate) return false;
+    cnt++;
+    if (limit && limit < cnt) return false;
+    return true;
+  });
 }
 
 const listener = app.listen(process.env.PORT || 3000, () => {
