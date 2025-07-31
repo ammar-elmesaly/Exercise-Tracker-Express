@@ -32,7 +32,8 @@ app.post('/api/users', async (req, res) => {
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
   try {
-    const result = await createNewExercise(req.body[":_id"], req.body.description, req.body.duration, req.body.date);
+    const result = await createNewExercise(req.params._id, req.body.description, req.body.duration, req.body.date);
+
     res.send({
       _id: result.user_id,
       username: result.username,
@@ -55,12 +56,13 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     const from = req.query.from;
     const to = req.query.to;
 
-    const exercises = await getAllExercises(req.params._id, limit, from, to);
+    let exercises = await getAllExercises(req.params._id, limit, from, to);
+
     res.send({
       _id: user._id,
       username: user.username,
       count: exercises.length,
-      log: exercises
+      log: exercises.map(e => {e.date = e.date.toDateString(); return e})
     });
   } catch (error) {
     res.send({error: error.message});
@@ -109,7 +111,7 @@ function filterExercices(exercises, limit, from, to) {
   const toDate = to ? new Date(to) : null;
   let cnt = 0;
 
-  return exercises.filter(e => {
+  return exercises.filter((e, index) => {
     const exerciseDate = new Date(e.date);
     if (fromDate && exerciseDate <= fromDate) return false;
     if (toDate && exerciseDate >= toDate) return false;
